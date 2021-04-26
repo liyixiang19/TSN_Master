@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+# 主要保存两个数据：当前设备id和设备标志位
+# eg. {"deviceId": 1001, "1001" : False, "1002" : True}
+
 def _init():  # 初始化
     global _global_dict
     _global_dict = {}

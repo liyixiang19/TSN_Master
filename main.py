@@ -4,7 +4,7 @@ import threading
 from common import glo
 from ui import designer
 from PyQt5.QtCore import pyqtSlot
-from PyQt5.QtWidgets import QApplication, QDialog
+from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox
 import socket
 import action.listener
 import survive.heartBeat
@@ -15,6 +15,8 @@ class MainDlg(QDialog, designer.Ui_MainWindow):
         super(MainDlg, self).__init__(parent)
         self.setupUi(self)
         self.initUI()
+        # 控制功能选择的节点
+        self.node_list = []
 
         # 创建广播发送器
         self.sendSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -22,7 +24,11 @@ class MainDlg(QDialog, designer.Ui_MainWindow):
         self.slave_to_master = "0812"
         self.master_to_slave = "0827"
         self.control_type = "0625"
-        self.control_port = "7991"
+        self.control_port = 8000
+        self.run_mode_1 = "2301"
+        self.run_mode_2 = "2302"
+        self.run_mode_3 = "2303"
+        self.fake_vid = "0000000000000000"
 
     def initUI(self):
         self.textEdit.setText("返回内容:")
@@ -44,11 +50,40 @@ class MainDlg(QDialog, designer.Ui_MainWindow):
         self.heartBeatThread.start()
 
     @pyqtSlot()
+    def on_motion_control_clicked(self):
+        print("点击了运动控制按钮，开启运动控制功能...")
+        if 1001 != glo.get_value("deviceId"):
+            cur_device_id = glo.get_value("deviceId")
+            # 添加当前设备id到combobox选项中
+            for i in range(1001, cur_device_id):
+                self.node_list.append(str(i))
+                self.comboBox.addItem(str(i))
+                self.comboBox_2.addItem(str(i))
+        else:
+            print("未发现活跃的从站设备...")
+            QMessageBox.information(self, '信息提示对话框', "未发现活跃的从站设备！")
+
+    @pyqtSlot()
     def on_run_mode_1_clicked(self):
-        print("启动运动模式1........")
-        # 组装消息帧，发送给控制端口
-        run_data_1 = ""
-        self.sendSocket.sendto(run_data_1.encode("utf-8"), ("255.255.255.255", self.control_port))
+        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>启动运动模式1<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        if self.comboBox.currentText() == "":
+            print("请先打开控制功能，选择要操作的从站节点！")
+            QMessageBox.information(self, '信息提示对话框', "请先打开控制功能，选择要操作的从站节点！")
+        else:
+            # 获取控制的节点
+            node_1 = self.comboBox.currentText()
+            node_2 = self.comboBox_2.currentText()
+            if node_1 == node_2:
+                # 组装消息帧，发送给控制端口
+                run_data = self.control_type + "0001" + node_1 + self.run_mode_1 + self.fake_vid
+                print("发送的控制指令：", run_data)
+                self.sendSocket.sendto(run_data.encode("utf-8"), ("255.255.255.255", self.control_port))
+            else:
+                # 组装消息帧，发送给控制端口
+                run_data_1 = self.control_type + "0001" + node_1 + self.run_mode_1 + self.fake_vid
+                self.sendSocket.sendto(run_data_1.encode("utf-8"), ("255.255.255.255", self.control_port))
+                run_data_2 = self.control_type + "0001" + node_1 + self.run_mode_1 + self.fake_vid
+                self.sendSocket.sendto(run_data_2.encode("utf-8"), ("255.255.255.255", self.control_port))
 
     @pyqtSlot()
     def on_run_mode_2_clicked(self):
@@ -63,7 +98,6 @@ class MainDlg(QDialog, designer.Ui_MainWindow):
         # 组装消息帧，发送给控制端口
         run_data_3 = ""
         self.sendSocket.sendto(run_data_3.encode("utf-8"), ("255.255.255.255", self.control_port))
-
 
     def handlerDisplay(self, msg, ip):
         print("----------------组网信号槽函数触发-----------------")
