@@ -9,9 +9,7 @@ class HeartBeatThread(QtCore.QThread):
 
     def __init__(self):
         super(HeartBeatThread, self).__init__()
-
         self.device_id_1 = str(glo.get_value("deviceId"))
-        print(self.device_id_1)
 
     def run(self):
         time.sleep(0.5)
