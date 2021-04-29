@@ -8,6 +8,7 @@ import socket
 class ReceiveThread(QtCore.QThread):
     receive_signal = pyqtSignal(str, str)
     query_result_signal = pyqtSignal(str)
+    real_time_data_signal = pyqtSignal(str)
 
     def __init__(self):
         super(ReceiveThread, self).__init__()
@@ -32,9 +33,12 @@ class ReceiveThread(QtCore.QThread):
             if receive_data_str[0:4] == "0812":
                 self.receive_signal.emit(receive_data_str, receive_data_ip)
             if receive_data_str[0:4] == "0715":
-                # 查询指令返回消息
                 query_res = receive_data_str[32:36]
-                self.query_result_signal.emit(query_res)
+                if receive_data_str[12:16] == "9988":
+                    self.real_time_data_signal.emit(query_res)
+                else:
+                    # 查询指令返回消息
+                    self.query_result_signal.emit(query_res)
 
 
 class HeartBeatListener(QtCore.QThread):

@@ -45,6 +45,7 @@ class MainWindow(QMainWindow):
         # 连接信号槽
         self.recvThread.receive_signal.connect(self.displayHandler)
         self.recvThread.query_result_signal.connect(self.queryResultHandler)
+        self.recvThread.real_time_data_signal.connect(self.realtimeDataHandler)
 
         # 开启线程
         self.recvThread.start()
@@ -59,11 +60,6 @@ class MainWindow(QMainWindow):
         # self.main_ui.search_start.setPalette(palette)
         # self.main_ui.search_start.setAutoFillBackground(True)
         self.main_ui.search_start.setDisabled(True)
-
-    def queryResultHandler(self, res):
-        print("receiving: ", res)
-        childWin.child.query_result_data.setText(res)
-        print("-------------------------------------\n")
 
     @pyqtSlot()
     def on_motion_control_clicked(self):
@@ -111,7 +107,7 @@ class MainWindow(QMainWindow):
         self.clickEvent(2)
 
     @pyqtSlot()
-    def on_run_mode_2_clicked(self):
+    def on_run_mode_3_clicked(self):
         print("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>启动运动模式3<<<<<<<<<<<<<<<<<<<<<<<<<<<")
         # 组装消息帧，发送给控制端口
         self.clickEvent(3)
@@ -134,12 +130,13 @@ class MainWindow(QMainWindow):
         if 200 == self.judgeData(msg, ip):
             print("收到从站组网请求，请求正确，成功返回数据, 设备入网成功")
             self.main_ui.textEdit.append(str(msg))
+        print("-------------------------------------\n")
 
     def heartbeatHandler(self, msg):
         print("【心跳信号槽函数触发】")
         if 200 == self.judgeAliveMsg(msg):
             print("从站心跳信号，请求正确，操作完成")
-            print("-----------------------------------\n")
+        print("-----------------------------------\n")
 
     def offlineHandler(self, de_id):
         print("【设备离线信号槽函数触发】")
@@ -168,6 +165,19 @@ class MainWindow(QMainWindow):
             self.main_ui.set_button_1003.setDisabled(True)
         else:
             print("设备id错误，请检查")
+        print("-------------------------------------\n")
+
+    def queryResultHandler(self, res):
+        print("【查询数据信号槽函数触发】")
+        print("receiving: ", res)
+        childWin.child.query_result_data.setText(res)
+        print("-------------------------------------\n")
+
+    def realtimeDataHandler(self, res):
+        print("【实时数据信号槽函数触发】")
+        print("receiving: ", res)
+        childWin.child.show_realtime_data.setText(res)
+        print("-------------------------------------\n")
 
     def judgeData(self, data, ip):
         print("解析数据: " + data)
@@ -286,6 +296,7 @@ class ChildWindow(QDialog):
         self.child = new_designer.Ui_ChildWindow()
         self.child.setupUi(self)
         self.query_type = "0714"
+        self.query_realtime_type = "0716"
         self.set_type = "0861"
         self.fake_vid = "0000000000000000"
         # m = MainWindow()
@@ -331,6 +342,15 @@ class ChildWindow(QDialog):
             query_plus_data = self.set_type + "0001" + set_button_id + self.plus + self.fake_vid + plus
             print("发送的控制指令：", query_plus_data, "\n")
             self.sendSocket.sendto(query_plus_data.encode("utf-8"), ("255.255.255.255", self.query_port))
+
+    @pyqtSlot()
+    def on_realtime_data_clicked(self):
+        set_button_id = glo.get_value("set_button_id")
+        print("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>实时监测从站数据==【%s】<<<<<<<<<<<<<<<<<<<<<<<<<<<", set_button_id)
+        query_realtime_position_data = self.query_realtime_type + "0001" + set_button_id + self.position \
+                                       + self.fake_vid
+        print("发送的实时数据监测指令：", query_realtime_position_data, "\n")
+        self.sendSocket.sendto(query_realtime_position_data.encode("utf-8"), ("255.255.255.255", self.query_port))
 
     @pyqtSlot()
     def on_query_button_clicked(self):
