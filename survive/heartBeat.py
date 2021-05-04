@@ -4,11 +4,11 @@ from PyQt5.QtCore import *
 from common import glo
 
 
-class HeartBeatThread(QtCore.QThread):
+class HeartBeatTimerThread(QtCore.QThread):
     offline_signal = pyqtSignal(str)
 
     def __init__(self):
-        super(HeartBeatThread, self).__init__()
+        super(HeartBeatTimerThread, self).__init__()
         self.device_id_1 = str(glo.get_value("deviceId"))
 
     def run(self):

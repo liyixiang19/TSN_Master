@@ -1,16 +1,15 @@
 import sys
-import threading
 import time
-
-from PyQt5 import Qt, QtGui
+import socket
+from PyQt5 import QtGui
 from qtpy import QtCore
-
-from common import glo
-from ui import designer, new_designer, dailog
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, QMainWindow
-import socket
-import action.listener
+
+from common import glo
+from ui import designer, new_designer
+import listener.heartBeatThread
+import listener.receiveThread
 import survive.heartBeat
 
 
@@ -19,13 +18,25 @@ class MainWindow(QMainWindow):
         QMainWindow.__init__(self)
         self.main_ui = designer.Ui_MainWindow()
         self.main_ui.setupUi(self)
-        # self.initUI()
-
+        self.initUI()
+        # 心跳计时器线程
+        self.heartbeatTimerThread = survive.heartBeat.HeartBeatTimerThread()
+        # 心跳线程
+        self.heartBeatThread = listener.heartBeatThread.HeartBeatListener()
+        # 监听消息线程
+        self.recvThread = listener.receiveThread.ReceiveThread()
+        # 连接槽函数
+        self.heartbeatTimerThread.offline_signal.connect(self.offlineHandler)
+        self.heartBeatThread.receive_heartbeat_signal.connect(self.heartbeatHandler)
+        self.recvThread.receive_signal.connect(self.displayHandler)
+        self.recvThread.query_result_signal.connect(self.queryResultHandler)
+        self.recvThread.real_time_data_signal.connect(self.realtimeDataHandler)
         # 控制功能选择的节点
         self.node_dict = {}
         # 创建广播发送器
         self.sendSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sendSocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        # 定义变量
         self.slave_to_master = "0812"
         self.master_to_slave = "0827"
         self.control_type = "0625"
@@ -35,30 +46,16 @@ class MainWindow(QMainWindow):
 
     def initUI(self):
         self.main_ui.textEdit.setText("返回内容:")
-        self.search_start.setDisabled(0)
 
     @pyqtSlot()
     def on_search_start_clicked(self):
         print("点击了搜索从站按钮,开启监听线程...")
         # 实例化组网报文监测
-        self.recvThread = action.listener.ReceiveThread()
-        # 连接信号槽
-        self.recvThread.receive_signal.connect(self.displayHandler)
-        self.recvThread.query_result_signal.connect(self.queryResultHandler)
-        self.recvThread.real_time_data_signal.connect(self.realtimeDataHandler)
-
-        # 开启线程
+        # 开启消息监听线程
         self.recvThread.start()
-
-        # 启动心跳报文监测
-        self.heartBeatThread = action.listener.HeartBeatListener()
-        self.heartBeatThread.receive_heartbeat_signal.connect(self.heartbeatHandler)
+        # 启动心跳报文监测线程
         self.heartBeatThread.start()
-
-        # palette = self.main_ui.search_start.palette()
-        # palette.setColor(QtGui.QPalette.Base, QtCore.Qt.green)
-        # self.main_ui.search_start.setPalette(palette)
-        # self.main_ui.search_start.setAutoFillBackground(True)
+        # 点击功能屏蔽
         self.main_ui.search_start.setDisabled(True)
 
     @pyqtSlot()
@@ -68,7 +65,6 @@ class MainWindow(QMainWindow):
             cur_device_id = glo.get_value("deviceId")
             # 添加当前设备id到combobox选项中
             for i in range(1001, cur_device_id):
-                # self.node_list.append(str(i))
                 self.main_ui.comboBox.addItem(str(i))
                 self.main_ui.comboBox_2.addItem(str(i))
         else:
@@ -115,7 +111,6 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def on_set_button_1001_clicked(self):
         glo.set_value("set_button_id", "1001")
-        print("anle")
 
     @pyqtSlot()
     def on_set_button_1002_clicked(self):
@@ -208,22 +203,16 @@ class MainWindow(QMainWindow):
                 self.showList(device_id, device_type, device_vid, ip, device_status)
                 # 保存实例
                 glo.set_value(device_id, True)
-                # print("当前设备标志位: ", device_id, "====", glo.get_value(device_id))
                 # 启动心跳线程，创建一个timer
-                self.heartbeatTimerThread = survive.heartBeat.HeartBeatThread()
-                # 连接槽函数
-                self.heartbeatTimerThread.offline_signal.connect(self.offlineHandler)
                 self.heartbeatTimerThread.start()
                 # 设备入网id自增
                 glo.set_value("deviceId", num + 1)
                 return 200
-
         else:
             print("错误的数据格式，请检查...")
             return 300
 
     def judgeAliveMsg(self, data):
-        alive_status = ""
         if "0312" == data[0:4]:
             # 解析数据
             alive_device_id = data[32:36]
@@ -244,11 +233,11 @@ class MainWindow(QMainWindow):
             print("错误的数据格式，请检查...")
             return 300
 
-    def showList(self, id, type, vid, ip, status):
-        print("界面显示的数据: ", id, type, vid, ip, status)
-        if id == "1001":
-            self.main_ui.lineEdit_101.setText(id)
-            self.main_ui.lineEdit_102.setText(type)
+    def showList(self, d_id, d_type, vid, ip, status):
+        print("界面显示的数据: ", d_id, d_type, vid, ip, status)
+        if d_id == "1001":
+            self.main_ui.lineEdit_101.setText(d_id)
+            self.main_ui.lineEdit_102.setText(d_type)
             self.main_ui.lineEdit_103.setText(vid)
             self.main_ui.lineEdit_104.setText(ip)
             if status == "0001":
@@ -260,9 +249,9 @@ class MainWindow(QMainWindow):
                 self.main_ui.set_button_1001.setDisabled(False)
             else:
                 self.main_ui.lineEdit_105.setText("unknown")
-        elif id == "1002":
-            self.main_ui.lineEdit_201.setText(id)
-            self.main_ui.lineEdit_202.setText(type)
+        elif d_id == "1002":
+            self.main_ui.lineEdit_201.setText(d_id)
+            self.main_ui.lineEdit_202.setText(d_type)
             self.main_ui.lineEdit_203.setText(vid)
             self.main_ui.lineEdit_204.setText(ip)
             if status == "0001":
@@ -274,9 +263,9 @@ class MainWindow(QMainWindow):
                 self.main_ui.set_button_1002.setDisabled(False)
             else:
                 self.main_ui.lineEdit_105.setText("unknown")
-        elif id == "1003":
-            self.main_ui.lineEdit_301.setText(id)
-            self.main_ui.lineEdit_302.setText(type)
+        elif d_id == "1003":
+            self.main_ui.lineEdit_301.setText(d_id)
+            self.main_ui.lineEdit_302.setText(d_type)
             self.main_ui.lineEdit_303.setText(vid)
             self.main_ui.lineEdit_304.setText(ip)
             if status == "0001":
@@ -299,20 +288,15 @@ class ChildWindow(QDialog):
         self.query_realtime_type = "0716"
         self.set_type = "0861"
         self.fake_vid = "0000000000000000"
-        # m = MainWindow()
-        # self.socket = m.sendSocket
 
         # 创建广播发送器
         self.sendSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sendSocket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-
+        # 定义变量
         self.query_port = 8000
         self.velocity = "1011"
         self.plus = "1012"
         self.position = "1013"
-
-        # self.recvThread1 = action.listener.ReceiveThread()
-        # self.recvThread1.query_result_signal.connect(self.queryResultHandler)
 
     @pyqtSlot()
     def on_set_button_clicked(self):
@@ -322,9 +306,7 @@ class ChildWindow(QDialog):
         position = self.child.position.text()
         plus = self.child.plus.text()
         print(velocity, plus, position)
-
-        # 校验
-        # 速度
+        # 校验速度
         if velocity != "":
             velocity = velocity.zfill(4)
             query_velocity_data = self.set_type + "0001" + set_button_id + self.velocity + self.fake_vid + velocity
@@ -376,12 +358,14 @@ class ChildWindow(QDialog):
 
 
 if __name__ == '__main__':
+    # 初始化全局变量
     glo._init()
     glo.set_value("deviceId", 1001)
+
     app = QApplication(sys.argv)
     mainWin = MainWindow()
     childWin = ChildWindow()
-
+    # 绑定信号槽
     btn_1001 = mainWin.main_ui.set_button_1001
     btn_1001.clicked.connect(childWin.show)
     btn_1002 = mainWin.main_ui.set_button_1002
