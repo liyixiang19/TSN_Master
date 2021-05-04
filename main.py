@@ -301,7 +301,7 @@ class ChildWindow(QDialog):
     @pyqtSlot()
     def on_set_button_clicked(self):
         set_button_id = glo.get_value("set_button_id")
-        print("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>设置从站==【%s】<<<<<<<<<<<<<<<<<<<<<<<<<<<", set_button_id)
+        print("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>设置从站==【%s】<<<<<<<<<<<<<<<<<<<<<<<<<<<" % set_button_id)
         velocity = self.child.velocity.text()
         position = self.child.position.text()
         plus = self.child.plus.text()
@@ -328,7 +328,7 @@ class ChildWindow(QDialog):
     @pyqtSlot()
     def on_realtime_data_clicked(self):
         set_button_id = glo.get_value("set_button_id")
-        print("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>实时监测从站数据==【%s】<<<<<<<<<<<<<<<<<<<<<<<<<<<", set_button_id)
+        print("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>实时监测从站数据==【%s】<<<<<<<<<<<<<<<<<<<<<<<<<<<" % set_button_id)
         query_realtime_position_data = self.query_realtime_type + "0001" + set_button_id + self.position \
                                        + self.fake_vid
         print("发送的实时数据监测指令：", query_realtime_position_data, "\n")
@@ -337,7 +337,7 @@ class ChildWindow(QDialog):
     @pyqtSlot()
     def on_query_button_clicked(self):
         set_button_id = glo.get_value("set_button_id")
-        print("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>查询从站==【%s】<<<<<<<<<<<<<<<<<<<<<<<<<<<", set_button_id)
+        print("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>查询从站==【%s】<<<<<<<<<<<<<<<<<<<<<<<<<<<" % set_button_id)
         query = self.child.query_type.currentText()
         print("查询类型：", query)
         if query == "速度":
